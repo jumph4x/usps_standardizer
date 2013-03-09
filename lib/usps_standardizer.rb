@@ -1,5 +1,4 @@
 # -*- encoding : utf-8 -*-
-require 'mechanize'
 
 #TODO: Improve documentation
 module USPSStandardizer
@@ -10,8 +9,8 @@ module USPSStandardizer
 
   class << self
 
-    def lookup_for(options, mechanize = Mechanize.new)
-      z = ZipLookup.new(options, mechanize)
+    def lookup_for(options)
+      z = ZipLookup.new(options)
       z.std_address
     end
 
@@ -25,4 +24,3 @@ module USPSStandardizer
   end
 
 end
-

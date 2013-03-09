@@ -23,9 +23,7 @@ It’s easy to cache usps results with USPSStandardizer, just configure a cache 
 Or you can pass your own Mechanize object to fetch the information
 
   $ require 'usps_standardizer'
-  $ require 'mechanize'
-  $ browser = Mechanize.new { |agent| agent.user_agent_alias = 'Mac Safari' }
-  $ result = USPSStandardizer.lookup_for({:address => '6216 eddington drive', :state => 'oh', :city => 'middletown'}, browser)
+  $ result = USPSStandardizer.lookup_for({:address => '6216 eddington drive', :state => 'oh', :city => 'middletown'})
 
 == License
 

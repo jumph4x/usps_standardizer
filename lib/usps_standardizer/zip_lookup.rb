@@ -1,66 +1,55 @@
 # -*- encoding : utf-8 -*-
-require 'mechanize'
+require 'nokogiri'
+require 'open-uri'
+require 'yaml'
 
 module USPSStandardizer
-
-  #TODO: Change from 'mechanize' to 'net/hhtp'
   #TODO: Implement 'timeout'
+  
+  class Error < ArgumentError
+  end
 
   class ZipLookup
 
     attr_accessor :address, :state, :city, :zipcode
 
-    def initialize(options = {}, mechanize = Mechanize.new)
+    def initialize(options = {})
       @address, @state, @city, @zipcode, @county = '', '', '', '', ''
-      @mechanize = mechanize
       options.each do |name, value|
         send("#{name}=", value)
       end
     end
 
     def std_address
-
-      if(cache and response = cache[redis_key(@address)])
-        address, city, state, county, zipcode = response.split('::')
-        return {:address => address, :city => city, :state => state, :county => county, :zipcode => zipcode}
-      end
-
-      return {} unless (content = get_std_address_content)
-
-      content.gsub!(/\t|\n|\r/, '')
-
-      content.scan %r{<span class=\"address1 range\">([^<]*)}
-      @r_address = $1.gsub(/^ | $/, '')
-
-      content.scan %r{<span class=\"city range\">([^<]*)}
-      @r_city = $1.gsub(/^ | $/, '')
-
-      content.scan %r{<span class=\"state range\">([^<]*)}
-      @r_state = $1.gsub(/^ | $/, '')
-
-      content.scan %r{<span class=\"zip\" style=\"\">([^<]*)}
-      @r_zipcode = $1.gsub(/^ | $/, '')
-
-      content.scan %r{<dt>County</dt><dd>([^<]*)}
-      @r_county = ($1.empty?) ? '' : $1.gsub(/^ | $/, '')
-
-
-      results = {:address => @r_address, :city => @r_city, :state => @r_state, :county => @r_county, :zipcode => @r_zipcode}
       if cache
-        cache[redis_key(@address)] = "#{@r_address}::#{@r_city}::#{@r_state}::#{@r_county}::#{@r_zipcode}"
+        response = cache[redis_key(@address)]
+        return YAML.load(response) if response
       end
-      results
+
+      result = get_std_address_content
+      if cache
+        cache[redis_key(@address)] = result.to_yaml
+      end
+      result
     end
 
     private
 
     def get_std_address_content
-      url = "https://tools.usps.com/go/ZipLookupResultsAction!input.action?resultMode=0&companyName=&address1=#{@address}&address2=&city=#{@city}&state=#{@state}&urbanCode=&postalCode=&zip=#{@zipcode}"
-      @mechanize.get url
-
-      return false unless @mechanize.page.search('div#error-box').empty?
-      return false unless @mechanize.page.search('div#result-list ul li').count == 1
-      @mechanize.page.search('div#result-list ul li:first').to_html
+      url = URI.escape("https://tools.usps.com/go/ZipLookupResultsAction!input.action?resultMode=0&companyName=&address1=#{@address}&address2=&city=#{@city}&state=#{@state}&urbanCode=&postalCode=&zip=#{@zipcode}")
+      @doc = Nokogiri::HTML(open(url))
+      
+      error = @doc.css('p#nonDeliveryMsg').first || @doc.css('p.multi').first || @doc.css('div.noresults-container .error').first
+      if error
+        raise Error.new(error.content)
+      end
+      
+      {
+        :address => @doc.css('span.address1').first.content.strip,
+        :city => @doc.css('span.city').first.content.strip,
+        :state => @doc.css('span.state').first.content.strip,
+        :zipcode => @doc.css('span.zip').first.content.strip
+      }
     end
 
     def cache
