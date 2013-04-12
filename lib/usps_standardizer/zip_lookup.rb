@@ -11,10 +11,10 @@ module USPSStandardizer
 
   class ZipLookup
 
-    attr_accessor :address, :state, :city, :zipcode
+    attr_accessor :address, :address2, :state, :city, :zipcode
 
     def initialize(options = {})
-      @address, @state, @city, @zipcode, @county = '', '', '', '', ''
+      @address, @address2, @state, @city, @zipcode, @county = '', '', '', '', ''
       options.each do |name, value|
         send("#{name}=", value)
       end
@@ -36,7 +36,7 @@ module USPSStandardizer
     private
 
     def get_std_address_content
-      url = URI.escape("https://tools.usps.com/go/ZipLookupResultsAction!input.action?resultMode=0&companyName=&address1=#{@address}&address2=&city=#{@city}&state=#{@state}&urbanCode=&postalCode=&zip=#{@zipcode}")
+      url = URI.escape("https://tools.usps.com/go/ZipLookupResultsAction!input.action?resultMode=0&companyName=&address1=#{@address}&address2=#{@address2}&city=#{@city}&state=#{@state}&urbanCode=&postalCode=&zip=#{@zipcode}")
       @doc = Nokogiri::HTML(open(url))
       
       error = @doc.css('p#nonDeliveryMsg').first || @doc.css('p.multi').first || @doc.css('div.noresults-container .error').first
